@@ -47,4 +47,4 @@ https://<editor>/#d=<docId>&s=<server-url>
 The web editor compiles the entry file to PDF with typst.ts in a Web Worker, about 400 ms after the last change. Details:
 - Fonts are typst.ts' default text fonts, loaded from jsDelivr.
 - `@preview/*` packages are fetched from packages.typst.org.
-- The preview uses the browser's built-in PDF viewer.
+- The preview renders the PDF to canvases with pdf.js (`pdfjs-dist`), so it works the same in every browser, including mobile.

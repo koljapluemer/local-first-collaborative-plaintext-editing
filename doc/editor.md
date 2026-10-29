@@ -20,8 +20,7 @@ just dev    # server on :1234 (data in server/data) + editor on :5173
 ## Limits
 
 - Uploads above 5 MB get a warning. The client refuses uploads above 25 MB, and the server enforces `MAX_BLOB_MB`.
-- The preview reloads on every successful compile, so the browser's PDF viewer may reset its scroll position. If the compile fails, the last good PDF stays.
-- Browsers without an inline PDF viewer (for example Android Chrome) get an "Open PDF" button instead.
+- The preview re-renders on every successful compile without flashing and keeps its scroll position. If the compile fails, the last good PDF stays.
 - Renaming a text file copies its content into a new entry, so concurrent edits made during the rename are lost.
 
 ## Code
