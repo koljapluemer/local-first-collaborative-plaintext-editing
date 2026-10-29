@@ -1,0 +1,12 @@
+services:
+  server:
+    build:
+      context: ..
+      dockerfile: server/Dockerfile
+    restart: unless-stopped
+    ports:
+      - "1234:1234"
+    environment:
+      MAX_BLOB_MB: 25
+    volumes:
+      - ./data:/data

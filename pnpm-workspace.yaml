@@ -1,0 +1,9 @@
+packages:
+  - shared
+  - server
+  - web-editor
+  - desktop-manager
+
+onlyBuiltDependencies:
+  - better-sqlite3
+  - esbuild

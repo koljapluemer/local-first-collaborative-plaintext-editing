@@ -1,0 +1,5 @@
+**/node_modules
+**/dist
+**/data
+desktop-manager/src-tauri/target
+.git
