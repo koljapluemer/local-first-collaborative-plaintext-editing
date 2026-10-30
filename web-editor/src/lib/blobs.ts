@@ -10,6 +10,7 @@ import {
 } from '@tmt/shared'
 import { createStore, del, get, keys, set } from 'idb-keyval'
 import type * as Y from 'yjs'
+import { getCreateToken } from './createToken'
 
 // Content-addressed cache shared by all projects, and a queue of uploads that
 // have not reached the server yet ("<docId>:<hash>" -> server URL).
@@ -56,7 +57,7 @@ export async function addBlob(link: DocLink, doc: Y.Doc, path: string, bytes: Ui
 
 async function uploadPending(link: DocLink, hash: string) {
   const bytes = await get<Uint8Array>(hash, cache)
-  if (bytes) await uploadBlob(link.server, link.docId, bytes, hash)
+  if (bytes) await uploadBlob(link.server, link.docId, bytes, hash, getCreateToken(link.server))
   await del(`${link.docId}:${hash}`, pending)
 }
 

@@ -11,6 +11,7 @@ Share a local Typst project folder through a link and edit it together in the br
 just dev       # server on :1234 + web editor on :5173
 just desktop   # Tauri app
 just test
+just deploy    # build server + editor image and run it on your host (doc/deploy.md)
 ```
 
 Needs pnpm and [just](https://github.com/casey/just); `just` lists all recipes.

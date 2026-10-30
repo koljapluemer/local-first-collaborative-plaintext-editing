@@ -19,12 +19,16 @@ export interface Share {
 export interface Settings {
   server: string
   editorUrl: string
+  /** The sync server's create token; needed to create docs there. */
+  createToken: string
 }
 
 const storePromise = load('shares.json', { defaults: {}, autoSave: true })
 
 export const shares = ref<Share[]>([])
-export const settings = ref<Settings>({ server: '', editorUrl: '' })
+const defaultSettings: Settings = { server: '', editorUrl: '', createToken: '' }
+
+export const settings = ref<Settings>({ ...defaultSettings })
 
 export async function loadAll() {
   const store = await storePromise
@@ -33,7 +37,7 @@ export async function loadAll() {
   const unkeyed = shares.value.filter((s) => !s.keys?.length)
   for (const s of unkeyed) s.keys = [{ key: newKey(), label: '' }]
   if (unkeyed.length) await saveShares()
-  settings.value = { server: '', editorUrl: '', ...((await store.get<Settings>('settings')) ?? {}) }
+  settings.value = { ...defaultSettings, ...((await store.get<Settings>('settings')) ?? {}) }
 }
 
 export async function saveShares() {

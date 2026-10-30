@@ -28,3 +28,21 @@ build: install
 # Run the server in Docker (detached)
 serve:
     cd server && docker compose up -d --build
+
+# Build the image (server + web editor) locally and run it on DEPLOY_HOST (needs deploy.env, see doc/deploy.md)
+deploy:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    source deploy.env
+    docker build -f server/Dockerfile --build-arg VITE_DEFAULT_SERVER="$PUBLIC_URL" -t take-my-typst:latest .
+    docker save take-my-typst:latest | gzip | ssh "$DEPLOY_HOST" 'gunzip | docker load'
+    scp deploy/compose.yaml "$DEPLOY_HOST:$DEPLOY_DIR/compose.yaml"
+    ssh "$DEPLOY_HOST" "cd $DEPLOY_DIR && docker compose up -d && docker image prune -f"
+    for i in $(seq 30); do curl -fsS "$PUBLIC_URL/health" >/dev/null 2>&1 && break; sleep 2; done
+    curl -fsS "$PUBLIC_URL/health" && echo " $PUBLIC_URL"
+
+# Follow the deployed server's logs
+deploy-logs:
+    #!/usr/bin/env bash
+    source deploy.env
+    ssh "$DEPLOY_HOST" "cd $DEPLOY_DIR && docker compose logs -f --tail 100"

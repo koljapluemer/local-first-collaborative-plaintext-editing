@@ -125,6 +125,7 @@ async function removeKey(share: Share, k: ShareKey) {
 async function onSaveSettings() {
   settings.value.server = settings.value.server.trim().replace(/\/+$/, '')
   settings.value.editorUrl = settings.value.editorUrl.trim()
+  settings.value.createToken = settings.value.createToken.trim()
   await saveSettings()
   showSettings.value = false
   toast.success('Settings saved.')
@@ -145,6 +146,11 @@ async function onSaveSettings() {
         <fieldset class="fieldset">
           <legend class="fieldset-legend">Sync server</legend>
           <input v-model="settings.server" class="input w-full" placeholder="https://sync.example.org" inputmode="url" />
+        </fieldset>
+        <fieldset class="fieldset">
+          <legend class="fieldset-legend">Create token</legend>
+          <input v-model="settings.createToken" class="input w-full" type="password" autocomplete="off" placeholder="If the sync server requires one" />
+          <p class="label">Needed to share new folders, not to join links.</p>
         </fieldset>
         <fieldset class="fieldset">
           <legend class="fieldset-legend">Web editor</legend>

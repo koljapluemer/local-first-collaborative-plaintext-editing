@@ -4,3 +4,4 @@ data/
 *.swp
 desktop-manager/src-tauri/target/
 desktop-manager/src-tauri/gen/
+deploy.env

@@ -9,11 +9,18 @@ function blobUrl(server: string, docId: string, hash: string): string {
   return `${trimSlash(server)}/blobs/${docId}/${hash}`
 }
 
-export async function uploadBlob(server: string, docId: string, bytes: Uint8Array, hash?: string): Promise<string> {
+/** `token` is the server's create token; only needed while the doc does not exist on the server yet. */
+export async function uploadBlob(
+  server: string,
+  docId: string,
+  bytes: Uint8Array,
+  hash?: string,
+  token?: string,
+): Promise<string> {
   hash ??= await sha256Hex(bytes)
   const res = await fetch(blobUrl(server, docId, hash), {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/octet-stream' },
+    headers: { 'Content-Type': 'application/octet-stream', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
     body: bytes as Uint8Array<ArrayBuffer>,
   })
   if (!res.ok) throw new Error(`Upload failed: ${res.status} ${await res.text().catch(() => '')}`.trim())

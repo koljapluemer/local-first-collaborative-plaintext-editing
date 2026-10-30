@@ -13,7 +13,7 @@ Each project is one Y.Doc:
 Paths are relative and `/`-separated. Ignored: hidden files and folders, `node_modules`, `target`, `dist`. Types and rules are defined in `shared/src/schema.ts`.
 
 Blob bytes are not stored in the CRDT. They are immutable and content-addressed:
-- `PUT /blobs/<docId>/<sha256>`: the server checks the hash.
+- `PUT /blobs/<docId>/<sha256>`: the server checks the hash. Uploads to a doc that does not exist on the server yet need the create token (see [Link](#link)).
 - `GET /blobs/<docId>/<sha256>`.
 
 Clients cache the bytes locally (IndexedDB in the browser, the folder itself on desktop).
@@ -25,6 +25,8 @@ https://<editor>/#d=<docId>&k=<key>&s=<server-url>
 ```
 
 `docId` is 128 random bits, base64url-encoded. Because the link puts it in the URL fragment, the static host never sees it. Anyone with the link can read and write, and there is no other access control. The code is in `shared/src/link.ts`.
+
+Creating a doc is restricted: if the server has a `CREATE_TOKEN`, a doc it does not know yet (not in SQLite and not loaded) is only accepted from a client that sends that token (Hocuspocus `token`, or `Authorization: Bearer` on blob uploads). Joining an existing doc needs only the link, so collaborators never see the token. The project owner enters it once: in the desktop settings, or in the editor's "New empty project" form, which stores it per server in `localStorage`. A project created offline reaches the server only when its creator first syncs with the token; until then, opening its link fails with "not on the server yet".
 
 `key` is 64 random bits and tells links to the same project apart, e.g. one per person. It is required, but it is not access control: the server never sees or checks it, and the `docId` alone grants access, so keys cannot be revoked. The editor shows an identicon of the key (`keyAvatar`) and sends the key in its awareness state.
 

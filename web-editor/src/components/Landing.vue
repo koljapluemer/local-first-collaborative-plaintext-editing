@@ -1,12 +1,15 @@
 <script setup lang="ts">
-import { buildLink, newDocId, newKey, parseLink } from '@tmt/shared'
-import { ref } from 'vue'
+import { buildLink, newDocId, newKey, parseLink, trimSlash } from '@tmt/shared'
+import { ref, watch } from 'vue'
+import { getCreateToken, setCreateToken } from '../lib/createToken'
 import { useToast } from '../lib/toast'
 
 const toast = useToast()
 const input = ref('')
 const defaultServer = import.meta.env.VITE_DEFAULT_SERVER ?? ''
 const server = ref(defaultServer)
+const token = ref('')
+watch(server, (s) => (token.value = getCreateToken(trimSlash(s.trim()))), { immediate: true })
 
 function open() {
   const link = parseLink(input.value.trim(), defaultServer || undefined)
@@ -18,6 +21,7 @@ function create() {
   const link = parseLink(`#d=${newDocId()}&k=${newKey()}&s=${encodeURIComponent(server.value.trim())}`)
   if (!link) return toast.error('Enter the http(s) URL of a sync server.')
   if (new URL(link.server).hostname === '0.0.0.0') return toast.error('0.0.0.0 is a bind address; use localhost or the server’s hostname.')
+  setCreateToken(link.server, token.value.trim())
   location.hash = new URL(buildLink(location.origin, link)).hash
 }
 </script>
@@ -36,6 +40,8 @@ function create() {
         <form class="flex flex-col gap-2" @submit.prevent="create">
           <label class="label" for="server">Sync server</label>
           <input id="server" v-model="server" class="input w-full" placeholder="https://sync.example.org" inputmode="url" />
+          <label class="label" for="token">Create token</label>
+          <input id="token" v-model="token" class="input w-full" type="password" autocomplete="off" placeholder="If the server requires one" />
           <button class="btn" type="submit">New empty project</button>
         </form>
       </div>

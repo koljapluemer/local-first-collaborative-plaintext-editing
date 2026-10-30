@@ -8,7 +8,7 @@ just dev    # server on :1234 (data in server/data) + editor on :5173
 
 ## Usage
 
-- Open a link, or create a new empty project on the landing page.
+- Open a link, or create a new empty project on the landing page. Creating one needs the server's create token if it has one ([architecture](architecture.md#link)); the editor remembers it per server.
 - File menu (top left):
   - Switch, create, rename or delete files.
   - Set the entry file (star).

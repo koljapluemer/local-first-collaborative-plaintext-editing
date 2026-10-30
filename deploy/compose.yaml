@@ -1,0 +1,21 @@
+# Copied to DEPLOY_DIR on the host by `just deploy`; see doc/deploy.md.
+# The image is built locally and loaded on the host, so there is no build section.
+name: take-my-typst
+
+services:
+  tmt:
+    image: take-my-typst:latest
+    restart: unless-stopped
+    environment:
+      CREATE_TOKEN: ${CREATE_TOKEN:?set CREATE_TOKEN in .env}
+      MAX_BLOB_MB: ${MAX_BLOB_MB:-25}
+    volumes:
+      - ./data:/data
+    # No published ports: the reverse proxy reaches this as tmt:1234 on its network.
+    networks:
+      - proxy
+
+networks:
+  proxy:
+    external: true
+    name: ${PROXY_NETWORK:?set PROXY_NETWORK in .env}

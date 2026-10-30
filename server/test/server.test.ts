@@ -1,5 +1,6 @@
-import { mkdtemp, rm } from 'node:fs/promises'
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
+import { gzipSync } from 'node:zlib'
 import { join } from 'node:path'
 import { HocuspocusProvider } from '@hocuspocus/provider'
 import { applyTextDiff, getFiles, newDocId, sha256Hex, syncUrl } from '@tmt/shared'
@@ -27,10 +28,14 @@ function until(cond: () => boolean, ms = 5000): Promise<void> {
   })
 }
 
-function connect(docId: string) {
+function connect(docId: string, token = '') {
   const doc = new Y.Doc()
-  const provider = new HocuspocusProvider({ url: syncUrl(base), name: docId, document: doc })
-  return { doc, provider }
+  const provider = new HocuspocusProvider({ url: syncUrl(base), name: docId, document: doc, token })
+  let denied = false
+  provider.on('authenticationFailed', () => {
+    denied = true
+  })
+  return { doc, provider, denied: () => denied }
 }
 
 describe('server', () => {
@@ -98,6 +103,88 @@ describe('server', () => {
       expect(getFiles(c.doc).get('main.typ')?.toString()).toBe('= Hello world\n')
     } finally {
       c.provider.destroy()
+      await server.destroy()
+    }
+  })
+
+  describe('with a create token', () => {
+    const token = 'secret'
+    const tokenConfig = () => ({ ...config(), createToken: token })
+
+    it('only lets token holders create docs, then anyone with the doc id joins', async () => {
+      const newDoc = newDocId()
+      let server = createServer(tokenConfig())
+      await server.listen()
+      const stranger = connect(newDoc, 'wrong')
+      await until(() => stranger.denied())
+      expect(stranger.provider.isSynced).toBe(false)
+      stranger.provider.destroy()
+
+      const owner = connect(newDoc, token)
+      await until(() => owner.provider.isSynced)
+      getFiles(owner.doc).set('main.typ', new Y.Text('= Owned\n'))
+      const guest = connect(newDoc)
+      await until(() => getFiles(guest.doc).get('main.typ')?.toString() === '= Owned\n')
+      await until(() => !owner.provider.hasUnsyncedChanges)
+      owner.provider.destroy()
+      guest.provider.destroy()
+      await server.destroy()
+
+      server = createServer(tokenConfig())
+      await server.listen()
+      const later = connect(newDoc)
+      try {
+        await until(() => later.provider.isSynced)
+        expect(getFiles(later.doc).get('main.typ')?.toString()).toBe('= Owned\n')
+      } finally {
+        later.provider.destroy()
+        await server.destroy()
+      }
+    })
+
+    it('requires the token for blob uploads to unknown docs', async () => {
+      const server = createServer(tokenConfig())
+      await server.listen()
+      try {
+        const bytes = new TextEncoder().encode('png')
+        const hash = await sha256Hex(bytes)
+        const unknown = `${base}/blobs/${newDocId()}/${hash}`
+        expect((await fetch(unknown, { method: 'PUT', body: bytes })).status).toBe(403)
+        const auth = { Authorization: `Bearer ${token}` }
+        expect((await fetch(unknown, { method: 'PUT', body: bytes, headers: auth })).status).toBe(201)
+        // docId was stored by the sync test above
+        const known = `${base}/blobs/${docId}/${hash}`
+        expect((await fetch(known, { method: 'PUT', body: bytes })).status).toBe(201)
+      } finally {
+        await server.destroy()
+      }
+    })
+  })
+
+  it('serves the web editor, precompressed when accepted', async () => {
+    const editorDir = join(dataDir, 'editor')
+    await mkdir(join(editorDir, 'assets'), { recursive: true })
+    await writeFile(join(editorDir, 'index.html'), '<!doctype html>')
+    await writeFile(join(editorDir, 'assets', 'app-abc.js'), 'console.log(1)')
+    await writeFile(join(editorDir, 'assets', 'app-abc.js.gz'), gzipSync('console.log(1)'))
+    const server = createServer({ ...config(), editorDir })
+    await server.listen()
+    try {
+      const index = await fetch(`${base}/`)
+      expect(index.status).toBe(200)
+      expect(index.headers.get('cache-control')).toBe('no-cache')
+      expect(await index.text()).toBe('<!doctype html>')
+
+      // fetch decompresses transparently; the headers show what was sent
+      const js = await fetch(`${base}/assets/app-abc.js`, { headers: { 'Accept-Encoding': 'gzip' } })
+      expect(js.headers.get('content-encoding')).toBe('gzip')
+      expect(js.headers.get('content-type')).toMatch(/javascript/)
+      expect(js.headers.get('cache-control')).toContain('immutable')
+      expect(await js.text()).toBe('console.log(1)')
+
+      expect((await fetch(`${base}/%2e%2e/docs.sqlite`)).status).toBe(404)
+      expect((await fetch(`${base}/health`)).status).toBe(200)
+    } finally {
       await server.destroy()
     }
   })

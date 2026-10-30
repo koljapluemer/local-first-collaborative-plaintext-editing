@@ -8,5 +8,6 @@ services:
       - "1234:1234"
     environment:
       MAX_BLOB_MB: 25
+      CREATE_TOKEN: ${CREATE_TOKEN:-}
     volumes:
       - ./data:/data

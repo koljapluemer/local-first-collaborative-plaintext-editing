@@ -4,6 +4,8 @@ import { IndexeddbPersistence } from 'y-indexeddb'
 import { ref, shallowRef } from 'vue'
 import * as Y from 'yjs'
 import { retryPendingUploads } from './blobs'
+import { getCreateToken } from './createToken'
+import { useToast } from './toast'
 import { awarenessUser, loadName } from './user'
 
 export type SyncStatus = 'offline' | 'syncing' | 'synced'
@@ -21,7 +23,15 @@ export async function openProject(link: DocLink) {
   const peers = ref(1)
   const paths = shallowRef<string[]>([])
 
-  const provider = new HocuspocusProvider({ url: syncUrl(link.server), name: link.docId, document: doc })
+  const provider = new HocuspocusProvider({
+    url: syncUrl(link.server),
+    name: link.docId,
+    document: doc,
+    token: () => getCreateToken(link.server),
+  })
+  provider.on('authenticationFailed', () => {
+    useToast().error('This project is not on the server yet. Whoever created it needs to open it once while online.')
+  })
   provider.setAwarenessField('user', awarenessUser(loadName(), link.key))
 
   let connected = false
