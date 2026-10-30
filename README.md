@@ -18,4 +18,7 @@ Needs pnpm and [just](https://github.com/casey/just); `just` lists all recipes.
 
 Docs: [architecture](doc/architecture.md) · [deploy](doc/deploy.md) · [web editor](doc/editor.md) · [desktop manager](doc/desktop.md)
 
-MIT © Kolja Sam Pluemer
+## Kudos
+
+This work is really just glued together from excellent prior art, please check the dependencies.
+Thanks to [@timontrettin](https://github.com/timontrettin), who had the initial idea and advised me on many aspects. 
