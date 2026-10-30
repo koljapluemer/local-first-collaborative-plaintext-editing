@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { buildLink, newDocId, parseLink } from '@tmt/shared'
+import { buildLink, newDocId, newKey, parseLink } from '@tmt/shared'
 import { ref } from 'vue'
 import { useToast } from '../lib/toast'
 
@@ -10,12 +10,12 @@ const server = ref(defaultServer)
 
 function open() {
   const link = parseLink(input.value.trim(), defaultServer || undefined)
-  if (!link) return toast.error('That does not look like a project link.')
+  if (!link) return toast.error('That does not look like a project link (with a k= key).')
   location.hash = new URL(buildLink(location.origin, link)).hash
 }
 
 function create() {
-  const link = parseLink(`#d=${newDocId()}&s=${encodeURIComponent(server.value.trim())}`)
+  const link = parseLink(`#d=${newDocId()}&k=${newKey()}&s=${encodeURIComponent(server.value.trim())}`)
   if (!link) return toast.error('Enter the http(s) URL of a sync server.')
   if (new URL(link.server).hostname === '0.0.0.0') return toast.error('0.0.0.0 is a bind address; use localhost or the server’s hostname.')
   location.hash = new URL(buildLink(location.origin, link)).hash

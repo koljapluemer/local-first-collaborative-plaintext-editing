@@ -13,8 +13,8 @@ Linux needs the usual Tauri dependencies (webkit2gtk-4.1, libsoup-3).
 
 1. Settings: set the sync server URL (for example `https://sync.example.org`) and the web editor URL.
 2. **Share a folder**: pick a folder. It gets a new project ID and is imported.
-3. **Link**: copies the capability link to send to someone.
-4. **Paste a link**: syncs an existing project into a folder of your choice. Use an empty folder. If a file exists on both sides with different content, the disk version wins.
+3. **Keys**: each shared folder has one or more link keys, each with its own **Link** button that copies the link with that key. **New key** adds one. The label (e.g. who got the link) is stored only in this app. Removing a key only removes it from the list; links with it keep working (see [architecture](architecture.md#link)).
+4. **Paste a link**: syncs an existing project into a folder of your choice. The pasted link's key becomes the folder's first key. Use an empty folder. If a file exists on both sides with different content, the disk version wins.
 
 Folders sync only while the window is open. Sync resumes on the next start, and changes made in between are merged. The play/stop button pauses a folder. The trash button stops sharing and leaves the files on disk.
 

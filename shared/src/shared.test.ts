@@ -8,7 +8,9 @@ import {
   getMeta,
   isIgnored,
   mainFile,
+  keyAvatar,
   newDocId,
+  newKey,
   normalizePath,
   parseLink,
   sha256Hex,
@@ -18,16 +20,28 @@ import {
 describe('link', () => {
   it('round-trips', () => {
     const docId = newDocId()
+    const key = newKey()
     expect(docId).toMatch(/^[A-Za-z0-9_-]{22}$/)
-    const url = buildLink('https://edit.example/', { docId, server: 'https://sync.example/' })
-    expect(url).toBe(`https://edit.example/#d=${docId}&s=https%3A%2F%2Fsync.example`)
-    expect(parseLink(url)).toEqual({ docId, server: 'https://sync.example' })
-    expect(parseLink(`#d=${docId}`, 'http://localhost:1234')).toEqual({ docId, server: 'http://localhost:1234' })
+    expect(key).toMatch(/^[A-Za-z0-9_-]{11}$/)
+    const url = buildLink('https://edit.example/', { docId, key, server: 'https://sync.example/' })
+    expect(url).toBe(`https://edit.example/#d=${docId}&k=${key}&s=https%3A%2F%2Fsync.example`)
+    expect(parseLink(url)).toEqual({ docId, key, server: 'https://sync.example' })
+    expect(parseLink(`#d=${docId}&k=${key}`, 'http://localhost:1234')).toEqual({ docId, key, server: 'http://localhost:1234' })
   })
   it('rejects garbage', () => {
-    expect(parseLink('#d=short&s=https://x')).toBeNull()
-    expect(parseLink(`#d=${newDocId()}&s=ftp://x`)).toBeNull()
-    expect(parseLink(`#d=${newDocId()}`)).toBeNull()
+    const key = newKey()
+    expect(parseLink(`#d=short&k=${key}&s=https://x`)).toBeNull()
+    expect(parseLink(`#d=${newDocId()}&k=${key}&s=ftp://x`)).toBeNull()
+    expect(parseLink(`#d=${newDocId()}&k=${key}`)).toBeNull()
+  })
+  it('requires a key', () => {
+    expect(parseLink(`#d=${newDocId()}&s=https://x`)).toBeNull()
+    expect(parseLink(`#d=${newDocId()}&k=bad&s=https://x`)).toBeNull()
+  })
+  it('renders a deterministic avatar', () => {
+    const key = newKey()
+    expect(keyAvatar(key)).toMatch(/^data:image\/svg\+xml/)
+    expect(keyAvatar(key)).toBe(keyAvatar(key))
   })
   it('derives ws url', () => {
     expect(syncUrl('https://a.b/')).toBe('wss://a.b/sync')

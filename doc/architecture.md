@@ -21,10 +21,12 @@ Clients cache the bytes locally (IndexedDB in the browser, the folder itself on 
 ## Link
 
 ```
-https://<editor>/#d=<docId>&s=<server-url>
+https://<editor>/#d=<docId>&k=<key>&s=<server-url>
 ```
 
 `docId` is 128 random bits, base64url-encoded. Because the link puts it in the URL fragment, the static host never sees it. Anyone with the link can read and write, and there is no other access control. The code is in `shared/src/link.ts`.
+
+`key` is 64 random bits and tells links to the same project apart, e.g. one per person. It is required, but it is not access control: the server never sees or checks it, and the `docId` alone grants access, so keys cannot be revoked. The editor shows an identicon of the key (`keyAvatar`) and sends the key in its awareness state.
 
 ## Local-first flow
 

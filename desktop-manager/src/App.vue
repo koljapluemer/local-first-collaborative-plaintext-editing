@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import { Copy, FolderPlus, Link2, Play, Settings, Square, Trash2 } from '@lucide/vue'
+import { Copy, FolderPlus, Link2, Play, Plus, Settings, Square, Trash2, X } from '@lucide/vue'
 import { writeText } from '@tauri-apps/plugin-clipboard-manager'
 import { open } from '@tauri-apps/plugin-dialog'
-import { buildLink, newDocId, parseLink } from '@tmt/shared'
+import { buildLink, keyAvatar, newDocId, newKey, parseLink } from '@tmt/shared'
 import { onMounted, reactive, ref } from 'vue'
 import Toasts from './components/Toasts.vue'
 import { type Session, type ShareStatus, startSession } from './lib/session'
-import { type Share, loadAll, saveSettings, saveShares, settings, shares } from './lib/shares'
+import { type Share, type ShareKey, loadAll, saveSettings, saveShares, settings, shares } from './lib/shares'
 import { useToast } from './lib/toast'
 
 const toast = useToast()
@@ -69,10 +69,10 @@ async function pickFolder(): Promise<string | null> {
   return folder
 }
 
-async function add(docId: string, server: string) {
+async function add(docId: string, server: string, key: string) {
   const folder = await pickFolder()
   if (!folder) return
-  const share: Share = { docId, folder, server, active: true }
+  const share: Share = { docId, folder, server, active: true, keys: [{ key, label: '' }] }
   shares.value.push(share)
   await saveShares()
   await start(share)
@@ -83,14 +83,14 @@ async function shareFolder() {
     showSettings.value = true
     return toast.error('Set the sync server URL first.')
   }
-  await add(newDocId(), settings.value.server.replace(/\/+$/, ''))
+  await add(newDocId(), settings.value.server.replace(/\/+$/, ''), newKey())
 }
 
 async function joinFolder() {
   const link = parseLink(joinLink.value.trim(), settings.value.server || undefined)
   if (!link) return toast.error('That does not look like a project link.')
   if (shares.value.some((s) => s.docId === link.docId)) return toast.error('This project is already shared here.')
-  await add(link.docId, link.server)
+  await add(link.docId, link.server, link.key)
   joinLink.value = ''
 }
 
@@ -101,13 +101,25 @@ async function removeShare(share: Share) {
   await saveShares()
 }
 
-async function copyLink(share: Share) {
+async function copyLink(share: Share, k: ShareKey) {
   if (!settings.value.editorUrl) {
     showSettings.value = true
     return toast.error('Set the editor URL first.')
   }
-  await writeText(buildLink(settings.value.editorUrl, { docId: share.docId, server: share.server }))
-  toast.success('Link copied.')
+  await writeText(buildLink(settings.value.editorUrl, { docId: share.docId, key: k.key, server: share.server }))
+  toast.success(k.label ? `Link for ${k.label} copied.` : 'Link copied.')
+}
+
+async function addKey(share: Share) {
+  share.keys.push({ key: newKey(), label: '' })
+  await saveShares()
+}
+
+async function removeKey(share: Share, k: ShareKey) {
+  const name = k.label || k.key
+  if (!confirm(`Remove key ${name}? Links with it keep working; this only removes it from the list.`)) return
+  share.keys = share.keys.filter((x) => x !== k)
+  await saveShares()
 }
 
 async function onSaveSettings() {
@@ -161,13 +173,28 @@ async function onSaveSettings() {
           </div>
           <span class="badge badge-sm" :class="badge[status[share.docId] ?? 'stopped']">{{ status[share.docId] ?? 'stopped' }}</span>
           <div class="flex gap-1">
-            <button class="btn btn-sm" title="Copy link" @click="copyLink(share)"><Copy class="size-4" /> Link</button>
             <button class="btn btn-ghost btn-sm btn-square" :title="share.active ? 'Stop syncing' : 'Start syncing'" @click="toggle(share)">
               <Square v-if="share.active" class="size-4" />
               <Play v-else class="size-4" />
             </button>
             <button class="btn btn-ghost btn-sm btn-square" title="Stop sharing" @click="removeShare(share)"><Trash2 class="size-4" /></button>
           </div>
+          <ul class="flex w-full flex-col gap-1">
+            <li v-for="k in share.keys" :key="k.key" class="flex items-center gap-2">
+              <img :src="keyAvatar(k.key)" class="size-6 shrink-0 rounded" :title="`Key ${k.key}`" alt="" />
+              <input
+                v-model="k.label"
+                class="input input-sm min-w-0 flex-1"
+                placeholder="Label, e.g. who it's for"
+                @change="saveShares"
+              />
+              <button class="btn btn-sm" title="Copy link with this key" @click="copyLink(share, k)"><Copy class="size-4" /> Link</button>
+              <button class="btn btn-ghost btn-sm btn-square" title="Remove key" @click="removeKey(share, k)"><X class="size-4" /></button>
+            </li>
+            <li>
+              <button class="btn btn-ghost btn-xs" @click="addKey(share)"><Plus class="size-3.5" /> New key</button>
+            </li>
+          </ul>
         </div>
       </li>
     </ul>

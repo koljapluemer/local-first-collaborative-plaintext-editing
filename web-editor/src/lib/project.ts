@@ -22,7 +22,7 @@ export async function openProject(link: DocLink) {
   const paths = shallowRef<string[]>([])
 
   const provider = new HocuspocusProvider({ url: syncUrl(link.server), name: link.docId, document: doc })
-  provider.setAwarenessField('user', awarenessUser(loadName()))
+  provider.setAwarenessField('user', awarenessUser(loadName(), link.key))
 
   let connected = false
   const updateStatus = () => {
@@ -55,7 +55,7 @@ export async function openProject(link: DocLink) {
     peers,
     paths,
     setName(name: string) {
-      provider.setAwarenessField('user', awarenessUser(name))
+      provider.setAwarenessField('user', awarenessUser(name, link.key))
     },
     destroy() {
       provider.destroy()

@@ -22,6 +22,7 @@ import {
   getFiles,
   getMeta,
   isIgnored,
+  keyAvatar,
   mainFile,
   normalizePath,
 } from '@tmt/shared'
@@ -32,7 +33,7 @@ import type { Diagnostic } from '../lib/compile-protocol'
 import { useCompiler } from '../lib/compiler'
 import { type Project, openProject } from '../lib/project'
 import { useToast } from '../lib/toast'
-import { loadName, saveName } from '../lib/user'
+import { loadName, randomName, saveName } from '../lib/user'
 import BlobView from './BlobView.vue'
 import CodeEditor from './CodeEditor.vue'
 import PdfPreview from './PdfPreview.vue'
@@ -62,7 +63,6 @@ openProject(props.link).then(
     const updateMain = () => (main.value = mainFile(p.doc))
     p.doc.on('update', updateMain)
     updateMain()
-    if (!name.value) askName()
   },
   (e) => toast.error(`Could not open project: ${e}`),
 )
@@ -96,12 +96,10 @@ const statusInfo = computed(() => {
   }
 })
 
-async function askName() {
-  const n = await prompt.value?.ask('Your name (shown to collaborators)', name.value)
-  if (n == null) return
-  name.value = n
-  saveName(n)
-  project.value?.setName(n)
+function commitName() {
+  name.value = name.value.trim() || randomName()
+  saveName(name.value)
+  project.value?.setName(name.value)
 }
 
 function validNewPath(input: string | null): string | null {
@@ -236,7 +234,7 @@ function gotoDiagnostic(d: Diagnostic) {
   <div class="flex h-dvh flex-col">
     <header class="flex items-center gap-1 border-b border-base-300 px-2 py-1">
       <div class="dropdown">
-        <div tabindex="0" role="button" class="btn btn-ghost btn-sm max-w-[50vw] font-normal">
+        <div tabindex="0" role="button" class="btn btn-ghost btn-sm max-w-[30vw] font-normal sm:max-w-[50vw]">
           <span class="truncate">{{ current ?? 'No files' }}</span>
           <ChevronDown class="size-4 shrink-0" />
         </div>
@@ -267,9 +265,19 @@ function gotoDiagnostic(d: Diagnostic) {
         <CloudOff v-if="project?.status.value === 'offline'" class="size-4 opacity-60" />
         <span v-else class="status mx-1" :class="statusInfo.cls"></span>
       </div>
-      <button class="btn btn-ghost btn-sm gap-1 px-2 font-normal" title="Change your name" @click="askName">
+      <span class="flex items-center gap-1 px-1 text-sm sm:px-2" title="Collaborators online">
         <Users class="size-4" />{{ project?.peers.value ?? 1 }}
-      </button>
+      </span>
+      <img :src="keyAvatar(link.key)" class="size-6 shrink-0 rounded" :title="`Access key ${link.key}`" alt="" />
+      <input
+        v-model="name"
+        class="input input-ghost input-sm w-24 min-w-0 px-1 sm:w-40 sm:px-3"
+        title="Your name (shown to collaborators)"
+        autocomplete="off"
+        autocapitalize="off"
+        @change="commitName"
+        @keydown.enter="($event.target as HTMLInputElement).blur()"
+      />
       <button class="btn btn-ghost btn-sm btn-square" title="Copy link" @click="copyLink"><Link class="size-4" /></button>
       <button class="btn btn-ghost btn-sm btn-square" title="Download PDF" @click="downloadPdf"><Download class="size-4" /></button>
     </header>
