@@ -47,11 +47,13 @@ deploy:
     set -euo pipefail
     source deploy.env
     docker build -f server/Dockerfile --build-arg VITE_DEFAULT_SERVER="$PUBLIC_URL" -t take-my-typst:latest .
-    docker save take-my-typst:latest | gzip | ssh "$DEPLOY_HOST" 'gunzip | docker load'
+    docker build -f markdown-editor/Dockerfile --build-arg VITE_DEFAULT_SERVER="$PUBLIC_URL" -t take-my-markdown:latest .
+    docker save take-my-typst:latest take-my-markdown:latest | gzip | ssh "$DEPLOY_HOST" 'gunzip | docker load'
     scp deploy/compose.yaml "$DEPLOY_HOST:$DEPLOY_DIR/compose.yaml"
     ssh "$DEPLOY_HOST" "cd $DEPLOY_DIR && docker compose up -d && docker image prune -f"
     for i in $(seq 30); do curl -fsS "$PUBLIC_URL/health" >/dev/null 2>&1 && break; sleep 2; done
     curl -fsS "$PUBLIC_URL/health" && echo " $PUBLIC_URL"
+    curl -fsS "$MARKDOWN_PUBLIC_URL/" >/dev/null && echo "Markdown: $MARKDOWN_PUBLIC_URL"
 
 # Follow the deployed server's logs
 deploy-logs:

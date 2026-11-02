@@ -47,6 +47,7 @@ Creating a doc is restricted: if the server has a `CREATE_TOKEN`, a doc it does 
 - **Server:**
   - Just another replica that is always online.
   - It merges updates and persists them to SQLite, and has no application logic.
+  - The release Compose stack serves the Typst frontend from the sync container and the Markdown frontend from a separate static container and hostname.
 
 ## Compile
 

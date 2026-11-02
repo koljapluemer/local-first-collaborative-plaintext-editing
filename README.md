@@ -14,7 +14,7 @@ just dev       # server on :1234 + web editor on :5173
 just markdown-dev # server on :1234 + Markdown editor on :5174
 just desktop   # Tauri app
 just test
-just deploy    # build server + editor image and run it on your host (doc/deploy.md)
+just deploy    # build server + both editors and run them on your host (doc/deploy.md)
 ```
 
 Needs pnpm and [just](https://github.com/casey/just); `just` lists all recipes.

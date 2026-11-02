@@ -16,7 +16,9 @@ Uploads retain the shared limits: warning above 5 MB and rejection above 25 MB.
 
 ## Standalone deployment
 
-Build static files directly:
+The normal repository deployment serves this frontend from `MARKDOWN_PUBLIC_URL` in its own static container. `just deploy` builds, transfers, restarts and health-checks both images.
+
+For a separate origin, build static files directly:
 
 ```sh
 VITE_DEFAULT_SERVER=https://sync.example.org pnpm --filter @tmt/markdown-editor build

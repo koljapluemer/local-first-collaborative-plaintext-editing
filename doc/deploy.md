@@ -1,6 +1,6 @@
 # Deploy
 
-One Docker image runs the sync server and serves the built web editor at `/`. Editor, WebSocket and blobs therefore share one origin.
+The deployment runs two images on the same proxy network: the sync server serves the Typst editor, while a small static container serves the Markdown editor on its own hostname. Both editor links point at the same sync server.
 
 ## Server
 
@@ -22,7 +22,7 @@ Endpoints:
 - WebSocket `/sync` (any path works)
 - `PUT|GET /blobs/<docId>/<sha256>`; `PUT` to an unknown doc needs `Authorization: Bearer <CREATE_TOKEN>` (else 403)
 - `GET /health`
-- everything else: the web editor. `.br`/`.gz` files built next to each asset are served when the client accepts them. `assets/*` is cached as immutable, `index.html` is `no-cache`.
+- everything else: the Typst editor. `.br`/`.gz` files built next to its assets are served when the client accepts them. `assets/*` is cached as immutable, `index.html` is `no-cache`.
 
 An editor served over https needs `wss://`, so put TLS in front. A minimal Caddyfile:
 
@@ -43,17 +43,21 @@ One-time setup. In the commands below, `$DEPLOY_HOST` and `$DEPLOY_DIR` stand fo
 1. Locally: `cp deploy.env.example deploy.env` and fill in the following values. `deploy.env` is gitignored.
    - `DEPLOY_HOST`: ssh target, e.g. `deploy@203.0.113.10`. The user must be in the `docker` group.
    - `DEPLOY_DIR`: directory on the host, relative to the ssh user's home.
-   - `PUBLIC_URL`: the https URL the editor and server will have. This is baked into the editor as the default server. Without a domain, use [sslip.io](https://sslip.io): `typst.203-0-113-10.sslip.io` resolves to `203.0.113.10`.
+   - `PUBLIC_URL`: the https URL the Typst editor and sync server will have. This is baked into both editors as the default server.
+   - `MARKDOWN_PUBLIC_URL`: the separate https URL for the Markdown editor. Without DNS, use [sslip.io](https://sslip.io), for example `typst.203-0-113-10.sslip.io` and `markdown.203-0-113-10.sslip.io`.
 2. On the host, create the directory and its `.env`:
    ```sh
    mkdir -p "$DEPLOY_DIR/data"
    printf 'CREATE_TOKEN=%s\nPROXY_NETWORK=%s\n' "$(openssl rand -base64 24)" "<proxy network>" > "$DEPLOY_DIR/.env"
    ```
    `docker network ls` shows the proxy's network; for a Compose project it is usually `<project>_default`.
-3. Add a site to the proxy's Caddyfile:
+3. Add both sites to the proxy's Caddyfile (also provided as `deploy/Caddyfile.example`):
    ```
    typst.203-0-113-10.sslip.io {
    	reverse_proxy tmt:1234
+   }
+   markdown.203-0-113-10.sslip.io {
+    reverse_proxy markdown:8080
    }
    ```
    Then restart the proxy container (`docker compose restart caddy`), and check `docker compose logs caddy` for the certificate. Use a restart, not `caddy reload`: when the Caddyfile is bind-mounted as a single file, editors that replace the file leave the container seeing the old one. The restart briefly interrupts the other sites behind that proxy.
@@ -77,4 +81,4 @@ Serve `web-editor/dist/`. The build uses relative asset paths, so a subpath work
 
 The compiler wasm is about 28 MB (7 MB brotli, 11 MB gzip). Enable compression on the static host.
 
-The Markdown editor is intentionally a separate deployment. See [Markdown editor](markdown.md#standalone-deployment) for its static build and Docker image. It uses the same sync server through `VITE_DEFAULT_SERVER`; no additional rendering service or server route is required.
+The standard deployment uses the Markdown editor's independent image and hostname. Both frontends use the same sync server through `VITE_DEFAULT_SERVER`; no rendering service is required.

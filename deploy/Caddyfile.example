@@ -1,0 +1,9 @@
+# Include these site blocks in the Caddy instance attached to PROXY_NETWORK.
+# Replace the hostnames when not using the example sslip.io address.
+typst.203-0-113-10.sslip.io {
+  reverse_proxy tmt:1234
+}
+
+markdown.203-0-113-10.sslip.io {
+  reverse_proxy markdown:8080
+}
