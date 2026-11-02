@@ -4,10 +4,12 @@ RUN corepack enable
 WORKDIR /repo
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
 COPY web-editor/package.json web-editor/
+COPY browser-client/package.json browser-client/
 COPY shared/package.json shared/
 RUN pnpm install --frozen-lockfile --filter @tmt/web-editor...
 COPY tsconfig.base.json ./
 COPY shared shared
+COPY browser-client browser-client
 COPY web-editor web-editor
 # Default sync server for "New empty project"; the deploy sets it to the public URL.
 ARG VITE_DEFAULT_SERVER=

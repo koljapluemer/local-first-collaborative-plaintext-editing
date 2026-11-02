@@ -18,13 +18,18 @@ import {
   applyTextDiff,
   buildLink,
   classify,
+  createTextFile,
+  deleteProjectFile,
   getBlobs,
   getFiles,
-  getMeta,
+  entryFile,
+  initializeProject,
   isIgnored,
   keyAvatar,
-  mainFile,
+  projectKind,
   normalizePath,
+  renameProjectFile,
+  setEntryFile,
 } from '@tmt/shared'
 import { computed, onBeforeUnmount, ref, shallowRef, watch } from 'vue'
 import * as Y from 'yjs'
@@ -43,6 +48,7 @@ const props = defineProps<{ link: DocLink }>()
 const toast = useToast()
 
 const project = shallowRef<Project | null>(null)
+const incompatible = ref(false)
 const compiler = shallowRef<ReturnType<typeof useCompiler> | null>(null)
 const current = ref<string | null>(null)
 const main = ref<string | null>(null)
@@ -59,8 +65,15 @@ openProject(props.link).then(
   (p) => {
     if (unmounted) return p.destroy()
     project.value = p
+    if (sessionStorage.getItem(`tmt:init:${props.link.docId}`) === 'typst') {
+      sessionStorage.removeItem(`tmt:init:${props.link.docId}`)
+      initializeProject(p.doc, 'typst')
+    }
     compiler.value = useCompiler(p)
-    const updateMain = () => (main.value = mainFile(p.doc))
+    const updateMain = () => {
+      incompatible.value = p.doc.getMap('meta').has('kind') && projectKind(p.doc) !== 'typst'
+      main.value = incompatible.value ? null : entryFile(p.doc, 'typst')
+    }
     p.doc.on('update', updateMain)
     updateMain()
   },
@@ -120,39 +133,25 @@ async function newFile() {
   const p = validNewPath(await prompt.value!.ask('New file', paths.value.length ? 'chapter.typ' : 'main.typ'))
   if (!p || !project.value) return
   if (classify(p) !== 'text') return toast.error('Upload binary files instead.')
-  getFiles(project.value.doc).set(p, new Y.Text(p.endsWith('.typ') && !main.value ? '= Untitled\n\n' : ''))
+  createTextFile(project.value.doc, p, p.endsWith('.typ') && !main.value ? '= Untitled\n\n' : '')
   select(p)
 }
 
 async function rename(from: string) {
   const to = validNewPath(await prompt.value!.ask(`Rename ${from}`, from))
   if (!to || !project.value) return
-  const doc = project.value.doc
   if (classify(to) !== classify(from)) return toast.error('Renaming cannot change between text and binary.')
-  doc.transact(() => {
-    if (getFiles(doc).has(from)) {
-      getFiles(doc).set(to, new Y.Text(getFiles(doc).get(from)!.toString()))
-      getFiles(doc).delete(from)
-    } else {
-      getBlobs(doc).set(to, getBlobs(doc).get(from)!)
-      getBlobs(doc).delete(from)
-    }
-    if (getMeta(doc).get('main') === from) getMeta(doc).set('main', to)
-  })
+  renameProjectFile(project.value.doc, from, to)
   select(to)
 }
 
 function remove(path: string) {
   if (!project.value || !confirm(`Delete ${path}?`)) return
-  const doc = project.value.doc
-  doc.transact(() => {
-    getFiles(doc).delete(path)
-    getBlobs(doc).delete(path)
-  })
+  deleteProjectFile(project.value.doc, path)
 }
 
 function setMain(path: string) {
-  project.value && getMeta(project.value.doc).set('main', path)
+  project.value && setEntryFile(project.value.doc, path)
 }
 
 function select(path: string) {
@@ -282,14 +281,15 @@ function gotoDiagnostic(d: Diagnostic) {
       <button class="btn btn-ghost btn-sm btn-square" title="Download PDF" @click="downloadPdf"><Download class="size-4" /></button>
     </header>
 
-    <div role="tablist" class="tabs tabs-border md:hidden">
+    <div v-if="incompatible" class="flex flex-1 items-center justify-center p-4 text-center">This is a Markdown project. Open it in the Markdown frontend.</div>
+    <div v-else role="tablist" class="tabs tabs-border md:hidden">
       <button role="tab" class="tab flex-1" :class="{ 'tab-active': tab === 'editor' }" @click="tab = 'editor'">Editor</button>
       <button role="tab" class="tab flex-1" :class="{ 'tab-active': tab === 'preview' }" @click="tab = 'preview'">
         Preview<span v-if="errorCount" class="badge badge-error badge-xs ml-1">{{ errorCount }}</span>
       </button>
     </div>
 
-    <main class="flex min-h-0 flex-1">
+    <main v-if="!incompatible" class="flex min-h-0 flex-1">
       <section
         class="min-w-0 flex-1 flex-col md:flex md:w-1/2 md:border-r md:border-base-300"
         :class="[tab === 'editor' ? 'flex' : 'hidden', dragging && 'bg-base-200']"

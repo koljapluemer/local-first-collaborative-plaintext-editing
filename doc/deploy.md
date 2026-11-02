@@ -76,3 +76,5 @@ VITE_DEFAULT_SERVER=https://typst.example.org pnpm build
 Serve `web-editor/dist/`. The build uses relative asset paths, so a subpath works too. Links carry their server in `s=`. `VITE_DEFAULT_SERVER` is only the default for links without `s=` and for "New empty project".
 
 The compiler wasm is about 28 MB (7 MB brotli, 11 MB gzip). Enable compression on the static host.
+
+The Markdown editor is intentionally a separate deployment. See [Markdown editor](markdown.md#standalone-deployment) for its static build and Docker image. It uses the same sync server through `VITE_DEFAULT_SERVER`; no additional rendering service or server route is required.

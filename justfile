@@ -9,6 +9,17 @@ dev: install
     VITE_DEFAULT_SERVER="${VITE_DEFAULT_SERVER:-http://localhost:1234}" pnpm --filter @tmt/web-editor dev &
     wait
 
+# Sync server (:1234) + Markdown editor (:5174)
+markdown-dev: install
+    #!/usr/bin/env bash
+    trap 'kill 0' EXIT
+    pnpm --filter @tmt/server dev &
+    VITE_DEFAULT_SERVER="${VITE_DEFAULT_SERVER:-http://localhost:1234}" pnpm --filter @tmt/markdown-editor dev -- --port 5174 &
+    wait
+
+markdown-build: install
+    pnpm --filter @tmt/markdown-editor build
+
 # Desktop manager (Tauri dev window)
 desktop: install
     cd desktop-manager && pnpm tauri dev
@@ -23,6 +34,7 @@ test: install
 build: install
     pnpm -r typecheck
     pnpm --filter @tmt/web-editor build
+    pnpm --filter @tmt/markdown-editor build
     cd desktop-manager && pnpm tauri build
 
 # Run the server in Docker (detached)

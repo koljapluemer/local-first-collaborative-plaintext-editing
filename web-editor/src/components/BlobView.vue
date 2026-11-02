@@ -18,7 +18,7 @@ watch(
     const ref = getBlobs(props.project.doc).get(path)
     if (!ref) return
     info.value = `${ref.mime}, ${(ref.size / 1024).toFixed(0)} KiB`
-    if (!ref.mime.startsWith('image/')) return
+    if (!ref.mime.startsWith('image/') && !ref.mime.startsWith('video/')) return
     try {
       const bytes = await getBlobBytes(props.project.link, ref.hash)
       url.value = URL.createObjectURL(new Blob([bytes as Uint8Array<ArrayBuffer>], { type: ref.mime }))
@@ -33,7 +33,8 @@ onBeforeUnmount(() => url.value && URL.revokeObjectURL(url.value))
 
 <template>
   <div class="flex h-full flex-col items-center justify-center gap-3 overflow-auto p-4">
-    <img v-if="url" :src="url" :alt="path" class="max-h-[70%] max-w-full object-contain" />
+    <img v-if="url && info.startsWith('image/')" :src="url" :alt="path" class="max-h-[70%] max-w-full object-contain" />
+    <video v-else-if="url && info.startsWith('video/')" :src="url" controls class="max-h-[70%] max-w-full" />
     <p v-if="error" class="text-error text-sm">{{ error }}</p>
     <p class="text-sm opacity-60">{{ path }} · {{ info }}</p>
   </div>

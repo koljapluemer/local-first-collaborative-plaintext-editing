@@ -1,7 +1,9 @@
 packages:
   - shared
+  - browser-client
   - server
   - web-editor
+  - markdown-editor
   - desktop-manager
 
 onlyBuiltDependencies:

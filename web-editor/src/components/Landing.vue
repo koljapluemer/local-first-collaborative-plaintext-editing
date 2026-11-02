@@ -22,6 +22,7 @@ function create() {
   if (!link) return toast.error('Enter the http(s) URL of a sync server.')
   if (new URL(link.server).hostname === '0.0.0.0') return toast.error('0.0.0.0 is a bind address; use localhost or the server’s hostname.')
   setCreateToken(link.server, token.value.trim())
+  sessionStorage.setItem(`tmt:init:${link.docId}`, 'typst')
   location.hash = new URL(buildLink(location.origin, link)).hash
 }
 </script>

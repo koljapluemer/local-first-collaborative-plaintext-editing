@@ -1,77 +1,34 @@
-import { HocuspocusProvider } from '@hocuspocus/provider'
-import { type DocLink, getBlobs, getFiles, syncUrl } from '@tmt/shared'
-import { IndexeddbPersistence } from 'y-indexeddb'
+import { openProjectSession } from '@tmt/browser-client'
+import type { DocLink } from '@tmt/shared'
 import { ref, shallowRef } from 'vue'
-import * as Y from 'yjs'
-import { retryPendingUploads } from './blobs'
-import { getCreateToken } from './createToken'
 import { useToast } from './toast'
 import { awarenessUser, loadName } from './user'
 
 export type SyncStatus = 'offline' | 'syncing' | 'synced'
 
-/**
- * Opens a project: the local Y.Doc is loaded from IndexedDB first, then synced
- * through the server whenever it is reachable. Everything works without it.
- */
 export async function openProject(link: DocLink) {
-  const doc = new Y.Doc()
-  const persistence = new IndexeddbPersistence(`tmt:${link.docId}`, doc)
-  await persistence.whenSynced
-
-  const status = ref<SyncStatus>('offline')
-  const peers = ref(1)
-  const paths = shallowRef<string[]>([])
-
-  const provider = new HocuspocusProvider({
-    url: syncUrl(link.server),
-    name: link.docId,
-    document: doc,
-    token: () => getCreateToken(link.server),
+  const session = await openProjectSession(link, awarenessUser(loadName(), link.key))
+  const status = ref<SyncStatus>(session.status)
+  const peers = ref(session.peers)
+  const paths = shallowRef(session.paths)
+  const offChange = session.on('change', () => {
+    status.value = session.status
+    peers.value = session.peers
+    paths.value = session.paths
   })
-  provider.on('authenticationFailed', () => {
+  const offAuth = session.on('authentication-failed', () => {
     useToast().error('This project is not on the server yet. Whoever created it needs to open it once while online.')
   })
-  provider.setAwarenessField('user', awarenessUser(loadName(), link.key))
-
-  let connected = false
-  const updateStatus = () => {
-    status.value = !connected ? 'offline' : provider.isSynced && !provider.hasUnsyncedChanges ? 'synced' : 'syncing'
-  }
-  provider.on('status', ({ status: s }: { status: string }) => {
-    connected = s === 'connected'
-    updateStatus()
-    if (connected) retryPendingUploads(link).catch(() => {})
-  })
-  provider.on('synced', updateStatus)
-  provider.on('unsyncedChanges', updateStatus)
-  provider.on('awarenessChange', ({ states }: { states: unknown[] }) => {
-    peers.value = states.length
-  })
-
-  const updatePaths = () => {
-    paths.value = [...getFiles(doc).keys(), ...getBlobs(doc).keys()].sort()
-  }
-  getFiles(doc).observe(updatePaths)
-  getBlobs(doc).observe(updatePaths)
-  updatePaths()
-
   return {
     link,
-    doc,
-    provider,
-    awareness: provider.awareness!,
+    doc: session.doc,
+    provider: session.provider,
+    awareness: session.awareness,
     status,
     peers,
     paths,
-    setName(name: string) {
-      provider.setAwarenessField('user', awarenessUser(name, link.key))
-    },
-    destroy() {
-      provider.destroy()
-      persistence.destroy()
-      doc.destroy()
-    },
+    setName(name: string) { session.setUser(awarenessUser(name, link.key)) },
+    destroy() { offChange(); offAuth(); session.destroy() },
   }
 }
 

@@ -1,0 +1,7 @@
+<script setup lang="ts">
+import { indentWithTab } from '@codemirror/commands'; import { css } from '@codemirror/lang-css'; import { markdown } from '@codemirror/lang-markdown'; import { EditorState } from '@codemirror/state'; import { EditorView, keymap } from '@codemirror/view'; import { getFiles } from '@tmt/shared'; import { basicSetup } from 'codemirror'; import { onBeforeUnmount, ref, watch } from 'vue'; import { yCollab } from 'y-codemirror.next'; import * as Y from 'yjs'; import type { Project } from '../lib/project'
+const props = defineProps<{ project: Project; path: string }>(); const el = ref<HTMLDivElement>(); let view: EditorView | null = null
+const theme = EditorView.theme({ '&': { backgroundColor: 'transparent', color: 'inherit' }, '.cm-gutters': { backgroundColor: 'transparent', border: 'none' } })
+function mount() { view?.destroy(); const text = getFiles(props.project.doc).get(props.path); if (!text || !el.value) return; view = new EditorView({ parent: el.value, state: EditorState.create({ doc: text.toString(), extensions: [basicSetup, keymap.of([indentWithTab]), EditorView.lineWrapping, theme, props.path.endsWith('.css') ? css() : markdown(), yCollab(text, props.project.awareness, { undoManager: new Y.UndoManager(text) })] }) }) }
+watch([() => props.path, el], mount, { flush: 'post' }); onBeforeUnmount(() => view?.destroy())
+</script><template><div ref="el" class="h-full min-h-0 overflow-hidden"></div></template>

@@ -3,11 +3,14 @@ import { Copy, FolderPlus, Link2, Play, Plus, Settings, Square, Trash2, X } from
 import { writeText } from '@tauri-apps/plugin-clipboard-manager'
 import { open } from '@tauri-apps/plugin-dialog'
 import { buildLink, keyAvatar, newDocId, newKey, parseLink } from '@tmt/shared'
+import type { ProjectKind } from '@tmt/shared'
 import { onMounted, reactive, ref } from 'vue'
 import Toasts from './components/Toasts.vue'
 import { type Session, type ShareStatus, startSession } from './lib/session'
 import { type Share, type ShareKey, loadAll, saveSettings, saveShares, settings, shares } from './lib/shares'
 import { useToast } from './lib/toast'
+import { detectProjectKind } from './lib/projectKind'
+import { tauriFs } from './lib/tauriFs'
 
 const toast = useToast()
 const sessions = new Map<string, Session>()
@@ -37,7 +40,7 @@ async function start(share: Share) {
     const session = await startSession(share, (s, error) => {
       status[share.docId] = s
       if (error) toast.error(`${share.folder}: ${error}`)
-    })
+    }, async (kind) => { if (share.kind !== kind || share.newProject) { share.kind = kind; share.newProject = false; await saveShares() } })
     sessions.set(share.docId, session)
   } catch (e) {
     status[share.docId] = 'error'
@@ -69,10 +72,10 @@ async function pickFolder(): Promise<string | null> {
   return folder
 }
 
-async function add(docId: string, server: string, key: string) {
+async function add(docId: string, server: string, key: string, kind: ProjectKind, newProject = false) {
   const folder = await pickFolder()
   if (!folder) return
-  const share: Share = { docId, folder, server, active: true, keys: [{ key, label: '' }] }
+  const share: Share = { docId, folder, server, active: true, keys: [{ key, label: '' }], kind, newProject }
   shares.value.push(share)
   await saveShares()
   await start(share)
@@ -83,14 +86,22 @@ async function shareFolder() {
     showSettings.value = true
     return toast.error('Set the sync server URL first.')
   }
-  await add(newDocId(), settings.value.server.replace(/\/+$/, ''), newKey())
+  const folder = await pickFolder()
+  if (!folder) return
+  const paths = await tauriFs(folder, folder).list()
+  const detected = detectProjectKind(paths)
+  const kind: ProjectKind = detected ?? (confirm('Use the Markdown editor for this mixed or empty folder?\nOK: Markdown · Cancel: Typst') ? 'markdown' : 'typst')
+  const share: Share = { docId: newDocId(), folder, server: settings.value.server.replace(/\/+$/, ''), active: true, keys: [{ key: newKey(), label: '' }], kind, newProject: true }
+  shares.value.push(share); await saveShares(); await start(share)
 }
 
 async function joinFolder() {
   const link = parseLink(joinLink.value.trim(), settings.value.server || undefined)
   if (!link) return toast.error('That does not look like a project link.')
   if (shares.value.some((s) => s.docId === link.docId)) return toast.error('This project is already shared here.')
-  await add(link.docId, link.server, link.key)
+  const markdownBase = settings.value.markdownEditorUrl.replace(/\/+$/, '')
+  const kind: ProjectKind = markdownBase && joinLink.value.trim().startsWith(markdownBase) ? 'markdown' : 'typst'
+  await add(link.docId, link.server, link.key, kind)
   joinLink.value = ''
 }
 
@@ -102,11 +113,12 @@ async function removeShare(share: Share) {
 }
 
 async function copyLink(share: Share, k: ShareKey) {
-  if (!settings.value.editorUrl) {
+  const editorUrl = share.kind === 'markdown' ? settings.value.markdownEditorUrl : settings.value.typstEditorUrl
+  if (!editorUrl) {
     showSettings.value = true
     return toast.error('Set the editor URL first.')
   }
-  await writeText(buildLink(settings.value.editorUrl, { docId: share.docId, key: k.key, server: share.server }))
+  await writeText(buildLink(editorUrl, { docId: share.docId, key: k.key, server: share.server }))
   toast.success(k.label ? `Link for ${k.label} copied.` : 'Link copied.')
 }
 
@@ -124,7 +136,8 @@ async function removeKey(share: Share, k: ShareKey) {
 
 async function onSaveSettings() {
   settings.value.server = settings.value.server.trim().replace(/\/+$/, '')
-  settings.value.editorUrl = settings.value.editorUrl.trim()
+  settings.value.typstEditorUrl = settings.value.typstEditorUrl.trim()
+  settings.value.markdownEditorUrl = settings.value.markdownEditorUrl.trim()
   settings.value.createToken = settings.value.createToken.trim()
   await saveSettings()
   showSettings.value = false
@@ -153,8 +166,12 @@ async function onSaveSettings() {
           <p class="label">Needed to share new folders, not to join links.</p>
         </fieldset>
         <fieldset class="fieldset">
-          <legend class="fieldset-legend">Web editor</legend>
-          <input v-model="settings.editorUrl" class="input w-full" placeholder="https://edit.example.org" inputmode="url" />
+          <legend class="fieldset-legend">Typst editor</legend>
+          <input v-model="settings.typstEditorUrl" class="input w-full" placeholder="https://typst.example.org" inputmode="url" />
+        </fieldset>
+        <fieldset class="fieldset">
+          <legend class="fieldset-legend">Markdown editor</legend>
+          <input v-model="settings.markdownEditorUrl" class="input w-full" placeholder="https://markdown.example.org" inputmode="url" />
         </fieldset>
         <div class="card-actions justify-end"><button class="btn btn-primary btn-sm" type="submit">Save</button></div>
       </div>
@@ -176,6 +193,7 @@ async function onSaveSettings() {
           <div class="min-w-0 flex-1">
             <div class="truncate font-mono text-sm" :title="share.folder">{{ share.folder }}</div>
             <div class="truncate text-xs opacity-60">{{ share.server }}</div>
+            <div class="text-xs opacity-60">{{ share.kind }}</div>
           </div>
           <span class="badge badge-sm" :class="badge[status[share.docId] ?? 'stopped']">{{ status[share.docId] ?? 'stopped' }}</span>
           <div class="flex gap-1">

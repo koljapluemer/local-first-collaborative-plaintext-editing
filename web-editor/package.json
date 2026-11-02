@@ -17,6 +17,7 @@
     "@lucide/vue": "^1.64.0",
     "@myriaddreamin/typst-ts-web-compiler": "0.7.0",
     "@myriaddreamin/typst.ts": "0.7.0",
+    "@tmt/browser-client": "workspace:*",
     "@tmt/shared": "workspace:*",
     "codemirror": "^6.0.2",
     "codemirror-lang-typst": "^0.6.0",

@@ -8,9 +8,11 @@ Each project is one Y.Doc:
 | ------- | ------------------------------------- | ------------------------------------------------------------ |
 | `files` | `Y.Map<path, Y.Text>`                 | text files: `.typ .bib .yml .yaml .csv .txt .json .toml .xml .md` |
 | `blobs` | `Y.Map<path, {hash, size, mime}>`     | binaries: images, PDFs and fonts, referenced by sha256        |
-| `meta`  | `Y.Map`                               | `main`: the entry file (fallback: `main.typ`, then the first `.typ`) |
+| `meta`  | `Y.Map`                               | project `kind`, schema version and `entry` path |
 
 Paths are relative and `/`-separated. Ignored: hidden files and folders, `node_modules`, `target`, `dist`. Types and rules are defined in `shared/src/schema.ts`.
+
+Projects have kind `typst` or `markdown`. Documents created before kinds were introduced are Typst projects and may still use the legacy `main` metadata key. New Markdown projects start with `document.md` and `styles.css`. The two frontends reject the other kind rather than changing it.
 
 Blob bytes are not stored in the CRDT. They are immutable and content-addressed:
 - `PUT /blobs/<docId>/<sha256>`: the server checks the hash. Uploads to a doc that does not exist on the server yet need the create token (see [Link](#link)).
@@ -52,3 +54,7 @@ The web editor compiles the entry file to PDF with typst.ts in a Web Worker, abo
 - Fonts are typst.ts' default text fonts, loaded from jsDelivr.
 - `@preview/*` packages are fetched from packages.typst.org.
 - The preview renders the PDF to canvases with pdf.js (`pdfjs-dist`), so it works the same in every browser, including mobile.
+
+## Markdown rendering
+
+The Markdown frontend renders GFM to sanitized HTML locally. Its collaborative `styles.css` is parsed, stripped of imports and external resources, and applied inside a Shadow DOM so it cannot style the application. Project-relative images, video sources, posters and CSS assets resolve through the same content-addressed blob cache. There is no Markdown server-side renderer or PDF pipeline.

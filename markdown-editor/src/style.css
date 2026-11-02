@@ -1,0 +1,6 @@
+@import 'tailwindcss';
+@plugin 'daisyui' { themes: light --default, dark --prefersdark; }
+html, body, #app { height: 100%; }
+.cm-editor { height: 100%; }
+.cm-editor.cm-focused { outline: none; }
+.cm-scroller { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 14px; line-height: 1.6; }

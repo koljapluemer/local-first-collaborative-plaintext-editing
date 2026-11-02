@@ -6,6 +6,9 @@ import {
   classify,
   getFiles,
   getMeta,
+  entryFile,
+  initializeProject,
+  projectKind,
   isIgnored,
   mainFile,
   keyAvatar,
@@ -79,6 +82,15 @@ describe('schema', () => {
     expect(mainFile(doc)).toBe('main.typ')
     getMeta(doc).set('main', 'b.typ')
     expect(mainFile(doc)).toBe('b.typ')
+  })
+  it('initializes and resolves Markdown projects', () => {
+    const doc = new Y.Doc()
+    initializeProject(doc, 'markdown')
+    expect(projectKind(doc)).toBe('markdown')
+    expect(entryFile(doc)).toBe('document.md')
+    expect(getFiles(doc).has('styles.css')).toBe(true)
+    expect(classify('styles.css')).toBe('text')
+    expect(classify('media/demo.webm')).toBe('blob')
   })
 })
 

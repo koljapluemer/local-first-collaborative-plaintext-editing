@@ -1,4 +1,4 @@
-import { getBlobs, getFiles, mainFile } from '@tmt/shared'
+import { entryFile, getBlobs, getFiles } from '@tmt/shared'
 import { ref, shallowRef } from 'vue'
 import { getBlobBytes } from './blobs'
 import type { CompileRequest, CompileResponse, Diagnostic } from './compile-protocol'
@@ -20,7 +20,7 @@ export function useCompiler(project: Project) {
   let timer: ReturnType<typeof setTimeout> | undefined
 
   async function buildRequest(): Promise<CompileRequest | null> {
-    const main = mainFile(project.doc)
+    const main = entryFile(project.doc, 'typst')
     if (!main) return null
     const files: Record<string, string> = {}
     getFiles(project.doc).forEach((t, p) => (files[p] = t.toString()))
